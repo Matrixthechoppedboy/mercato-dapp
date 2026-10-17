@@ -1,5 +1,5 @@
+import { AlertTriangle } from 'lucide-react'
 import { LayoutDashboard } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
@@ -27,6 +27,16 @@ export default async function AdminOverviewPage() {
     .order('expires_at', { ascending: false })
     .limit(5)
 
+  // A failed query must not be rendered as a valid empty state. Surface the
+  // failure explicitly so the operator knows the section is unavailable.
+  if (expiredDealsError) {
+    console.error('[admin-overview] expired deals query failed', {
+      operation: 'deals.expired',
+      code: expiredDealsError.code,
+      message: expiredDealsError.message,
+    })
+  }
+
   return (
     <div className="space-y-6">
       <header>
@@ -35,9 +45,9 @@ export default async function AdminOverviewPage() {
           <h1 className="text-2xl font-bold tracking-tight">
             {tr(m, 'adminOverview.title')}
           </h1>
-          <Badge variant="secondary" className="text-xs">
+          <span className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
             Admin
-          </Badge>
+          </span>
         </div>
         <p className="text-sm text-muted-foreground">{tr(m, 'adminOverview.subtitle')}</p>
       </header>
@@ -52,7 +62,22 @@ export default async function AdminOverviewPage() {
       </div>
 
       {/* Expired funding opportunities management */}
-      {!expiredDealsError && expiredDeals && expiredDeals.length > 0 && (
+      {expiredDealsError ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+              <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden />
+              Expired Funding Opportunities Unavailable
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              This section could not be loaded. Totals and lists here are not shown to avoid
+              presenting misleading data.
+            </p>
+          </CardContent>
+        </Card>
+      ) : expiredDeals && expiredDeals.length > 0 ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-semibold">
@@ -65,15 +90,15 @@ export default async function AdminOverviewPage() {
                 <div>
                   <p className="font-medium">{deal.supplier_name ?? 'Unknown supplier'}</p>
                   <p className="text-sm text-muted-foreground">
-                    {new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).surformat(Number(deal.order_value ?? 0))}
+                    {new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(Number(deal.order_value ?? 0))}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Expired: {deal.expires_at ? new Date(deal.expires_at).toLocaleDateString(locale) : 'N/A'}
                   </p>
                   {Number(deal.reopen_count ?? 0) > 0 && (
-                    <Badge variant="outline" className="mt-1 text-xs">
+                    <span className="mt-1 inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
                       Reopened Opportunity (x {String(deal.reopen_count ?? 0)})
-                    </Badge>
+                    </span>
                   )}
                 </div>
                 <Button asChild variant="outline" size="sm">
@@ -85,7 +110,7 @@ export default async function AdminOverviewPage() {
             ))}
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
   )
 }
