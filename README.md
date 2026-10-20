@@ -183,6 +183,7 @@ Open [http://localhost:3000](http://localhost:3000). Connect a Stellar wallet (F
 bun lint
 bun build
 bun start
+cargo test --workspace
 ```
 
 ---
@@ -193,7 +194,7 @@ bun start
 - **Wallet architecture**: Stellar Wallets Kit (Freighter, Albedo) and Pollar today; Privy is planned as an additive provider after capability validation.
 - **Create deal (no escrow at create)**: Multi-step form; deal stored in Supabase seeking funding.
 - **Direct funding**: One investor pays supplier principal + 1% platform fee in classic Stellar USDC.
-- **Multi-investor funding (planned)**: Independently tracked contributions accumulate in Stellar escrow; supplier settlement waits for the complete financing target.
+- **Soroban multi-investor funding contracts**: Registry-bound USDC SAC pools atomically record positions and pay the supplier only at the complete target. Contract-only for now; not integrated with the deal UI or database.
 - **Multi-release repayment escrow**: Admin deploys TW escrow after delivery confirmation; PyME micro-funds; admin releases milestones to investor.
 - **DeFindex capital management**: View supported vaults and positions, deposit/withdraw with user authorization, and monitor vault activity.
 - **Vault-to-financing allocation**: Existing withdrawal UI foundation with planned durable allocation into direct or multi-investor funding.

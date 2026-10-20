@@ -402,11 +402,11 @@ mercato-dapp/
 
 ## 5. Stellar Funding and Trustless Work Escrow Models
 
-MERCATO supports the existing **single-investor model** and plans an optional **dual-investor model** for orders that are too large for one investor. These models have different funding and repayment escrow semantics and must remain explicit in data, UI, and transaction construction.
+MERCATO supports the existing **single-investor model** and plans optional **multi-investor financing** for orders that are too large for one investor. These models have different funding and repayment semantics and must remain explicit in data, UI, and transaction construction.
 
-**Current single-investor model:** funding is not escrowed. One investor pays the supplier principal and Mercato's 1% platform fee with a classic Stellar USDC transaction built in `lib/stellar/build-usdc-split-payment.ts`.
+**Current application path:** funding is not escrowed. One investor pays the supplier principal and Mercato's 1% platform fee with a classic Stellar USDC transaction built in `lib/stellar/build-usdc-split-payment.ts`. This legacy path remains unchanged.
 
-**Planned dual-investor model:** the first investor may choose partial participation and specify a contribution below the remaining principal. A dedicated funding escrow collects contributions from at most two investors. The marketplace shows the funded and remaining amounts until the target is reached; only then can the supplier receive the full invoice amount. The original single-investor path remains available when an investor chooses to fund the entire order.
+**Soroban funding contracts:** `contracts/credit-registry` and `contracts/credit-funding` implement a separate target-gated USDC SAC funding pool with independently recorded, non-transferable investor positions. The contracts are not yet wired into the Next.js deal UI, Supabase deal workflow, portfolio, or repayment payout flow; do not treat this as an application rollout or replace legacy direct funding with it.
 
 In both models, repayment is non-custodial. The single-investor repayment escrow retains its time-sliced milestones. The dual-investor repayment escrow instead creates one payout milestone per investor, with principal and profit allocated from that investor's contribution.
 
@@ -478,68 +478,58 @@ sequenceDiagram
 
 **Repayment status lifecycle:** `none` → `order_confirmed` → `escrow_initialized` → `funding` → `ready_to_release` → `partially_released` → `released` (deal completed).
 
-### 5.4 Planned Dual-Investor Funding Flow
+### 5.4 Soroban Target-Gated Funding Contract
 
-Dual-investor mode is optional and capped at **two investors**. The funding UI gives the first investor an explicit choice: **Fund entire order** or **Make a partial investment**. Choosing a partial amount activates dual mode and reserves the second slot for another investor to complete the target. The deal terms—principal target, return rate, term, supplier, asset, and funding deadline—must be locked when the first contribution is accepted.
+The registry is initialized with one allowed USDC SAC address and the funding-pool WASM hash. An administrator registers immutable funding terms (asset ID, supplier, principal target, fee recipient and policy version, excess recipient, and deadline), then the factory deploys and binds exactly one pool to that asset. The pool independently checks the registry record and SAC decimals.
+
+Each authenticated contribution transfers `principal + funding fee` into the pool and updates one position per investor atomically. Top-ups require a strictly increasing investor nonce; their position ID and contribution reference are emitted with versioned events. Ownership units equal confirmed principal units; fees are excluded. The contract does not hard-code a two-investor limit.
 
 ```mermaid
 sequenceDiagram
-  participant I1 as Investor 1
-  participant I2 as Investor 2
-  participant App as MERCATO
-  participant FE as Funding escrow
-  participant Admin
+  participant I1 as Investor A
+  participant I2 as Investor B
+  participant Pool as CreditFunding
   participant Supplier
 
-  I1->>App: Choose partial investment and amount C1
-  App->>App: Validate C1 is below target and lock deal terms
-  App->>FE: Create or fund dual-investor escrow
-  App-->>I1: Confirm contribution and show remaining amount
-  App-->>I2: Show one investor slot and remaining amount available
-  I2->>App: Commit remaining amount C2
-  App->>App: Revalidate remaining amount atomically
-  App->>FE: Fund escrow with C2
-  FE-->>App: Funding target reached
-  Admin->>FE: Approve supplier release
-  FE->>Supplier: Full invoice principal
-  App->>App: Mark deal funded and snapshot allocations
+  I1->>Pool: contribute(C1, nonce, reference)
+  Pool->>Pool: Transfer SAC; update A's position atomically
+  Pool-->>I1: Position ID and current funded amount
+  I2->>Pool: contribute(C2, nonce, reference)
+  Pool->>Pool: Check remaining target; transfer SAC; update B's position
+  Pool-->>I2: Target reached; state ReadyToSettle
+  Pool->>Supplier: settle() pays frozen invoice principal once
 ```
 
-The marketplace must display `funded_amount`, `remaining_amount`, occupied investor slots, and the contribution required to complete the order. It must not expose private investor details beyond the product's approved visibility rules.
+`settle` is permissionless once the exact target is reached. The pool transfers exactly the frozen invoice principal to the supplier and accumulated funding fees to the frozen fee recipient in the same atomic contract invocation that transitions the registry asset to settled. A failed downstream call rolls back the whole transaction.
 
 #### Funding rules
 
-- `0 < contribution <= remaining principal`; the second investor normally fills the exact remainder.
-- A single investor can still fund 100% and stay on the original direct-funding path.
-- No third contribution is accepted after two investor slots are occupied.
-- The supplier receives funds only after confirmed escrow balance reaches the locked principal target.
-- The funding escrow is a different contract instance from the post-delivery repayment escrow. Before implementation, validate that the chosen Trustless Work escrow type supports multiple funders, target-gated supplier release, deadline cancellation, and per-investor refunds; otherwise use a purpose-built Soroban funding-pool contract.
-- Platform and protocol fees must not reduce the supplier's invoice amount. If the funding escrow charges release fees, investor deposits must be grossed up or the fee must be paid separately under a documented policy.
-- Contribution acceptance must use a database transaction or equivalent reservation plus ledger reconciliation so two investors cannot overfill the final slot.
-- Every contribution requires an idempotency key and confirmed Stellar transaction hash before it counts toward the displayed funded total.
-- If the target is not reached before the funding deadline, the escrow enters a cancellation/refund path; partial capital must never remain indefinitely locked.
+- `0 < contribution <= remaining principal`; contract state serializes competing contributions and prevents overfunding.
+- Contributions are denominated in integer SAC units. The configured fee is `floor(cumulative funded principal × bps / 10,000)`; each contribution pays the increase from the prior accrued fee, assigning any rounding unit to the contribution that crosses the threshold. Splitting does not change the total. Fees are separate from ownership principal, paid at settlement, and fully refundable if funding expires. Stellar transaction fees are paid separately in XLM by the transaction source; the pool does not deduct a USDC protocol fee.
+- The supplier receives no funds before settlement and exactly the frozen principal on settlement.
+- At/after the deadline, a partial pool can be cancelled. An investor or any caller can refund each open position only to its recorded funding wallet; bounded refund batches support keepers. Replays cannot pay twice.
+- Direct SAC transfers to the pool do not create positions or count toward the target. Only the fixed excess recipient can recover balance above accounted liabilities.
+- If the target has been reached before the deadline, settlement wins the expiry race; cancellation rejects a full-target pool.
+- The Next.js integration must reconcile contribution event IDs and confirmed transaction hashes from receipts. The contract does not invent or store a transaction hash.
 
-Suggested funding lifecycle:
+On-chain lifecycle:
 
 ```text
-open
-  -> partially_funded
-  -> fully_funded
-  -> supplier_release_ready
-  -> supplier_released
-
-terminal alternative: expired -> refunding -> refunded
+Open -> ReadyToSettle -> Settled
+Open -> Cancelled -> per-position Refunded
 ```
 
-The existing derived `FundingStatus` is insufficient for this flow. The target schema should introduce a funding mode and contribution records rather than storing both investors in `deals.investor_id`:
+Persistent contract entries extend their TTL when read or written. Clients/operators must restore archived registry and position entries using Soroban's restore-footprint flow before invoking functions that access them; TTL extension alone cannot restore archived entries. Keep a recovery index of asset/position IDs off-chain.
+
+The Next.js/Supabase integration remains future work. It must introduce a funding mode and contribution records rather than storing multiple investors in `deals.investor_id`:
 
 | Record | Target fields |
 |--------|---------------|
 | `deals` | `funding_mode` (`single` or `dual`), locked target, funding deadline, funding escrow ID, aggregate funding state |
 | `deal_investments` | deal ID, investor ID, committed principal, ownership share, contribution status, funding transaction hash, timestamps |
-| funding escrow snapshot | contract ID, expected target, confirmed balance, release/refund transaction hashes, last reconciled ledger |
+| funding pool snapshot | contract ID, expected target, confirmed balance, settlement/refund transaction hashes, last reconciled ledger |
 
-`deal_investments` becomes the source for portfolio ownership and repayment allocation. `deals.investor_id` remains a compatibility field for existing single-investor deals and must not be treated as authoritative for dual-investor orders.
+`deal_investments` should become the source for portfolio ownership and repayment allocation. `deals.investor_id` remains a compatibility field for existing single-investor deals and must not be treated as authoritative for multi-investor orders.
 
 ### 5.5 Planned Dual-Investor Repayment Flow
 
