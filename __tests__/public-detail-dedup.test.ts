@@ -1,6 +1,15 @@
-import { describe, expect, mock, test } from 'bun:test'
+import { afterAll, describe, expect, mock, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import * as ReactNamespace from 'react'
+import * as SupabaseServerNamespace from '@/lib/supabase/server'
+import * as SupabaseServiceNamespace from '@/lib/supabase/service'
+
+// Snapshot the real exports before any mock.module() call: module namespace objects are
+// live bindings, so by afterAll time they would already reflect the stubs below.
+const ReactOriginal = { ...ReactNamespace }
+const SupabaseServerOriginal = { ...SupabaseServerNamespace }
+const SupabaseServiceOriginal = { ...SupabaseServiceNamespace }
 
 const ROOT = join(import.meta.dir, '..')
 
@@ -101,4 +110,13 @@ describe('cached loader deduplication', () => {
     await getPublicPymeProfile('pyme-a')
     expect(reads).toBe(1)
   })
+})
+
+// Bun's mock.module() registrations are global and persist for the rest of the test
+// process; restore the real modules so later test files import the full React and
+// Supabase implementations instead of these stubs.
+afterAll(() => {
+  mock.module('react', () => ({ ...ReactOriginal }))
+  mock.module('@/lib/supabase/server', () => ({ ...SupabaseServerOriginal }))
+  mock.module('@/lib/supabase/service', () => ({ ...SupabaseServiceOriginal }))
 })

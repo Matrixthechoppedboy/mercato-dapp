@@ -1,5 +1,10 @@
-import { describe, expect, test, mock, beforeEach } from 'bun:test'
+import { afterAll, describe, expect, test, mock, beforeEach } from 'bun:test'
 import { renderHook, act } from '@testing-library/react'
+import * as RepaymentDeploymentGuard from '@/lib/trustless/repayment-deployment-guard'
+
+// Snapshot the real exports before the stub below: module namespaces are live bindings,
+// and Bun's mock.module() persists for the rest of the shared test process.
+const RealRepaymentDeploymentGuard = { ...RepaymentDeploymentGuard }
 
 const ACCOUNT = 'GA7QYNF7SOWQ3GLR2BGMZEHXAVIRZA4KVWLTJJFC7MGXUA74P7UJVSGZ'
 const CONTRACT_ID = 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC'
@@ -43,6 +48,13 @@ mock.module('@/lib/trustless/repayment-deployment-guard', () => ({
   compareAuthoritativeSnapshot: () => [],
   buildAuthoritativeSnapshot: () => ({}),
 }))
+
+afterAll(() => {
+  mock.module(
+    '@/lib/trustless/repayment-deployment-guard',
+    () => RealRepaymentDeploymentGuard,
+  )
+})
 
 mock.module('@/lib/supabase/client', () => ({
   createClient: () => ({
