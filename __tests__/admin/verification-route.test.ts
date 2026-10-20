@@ -8,7 +8,17 @@ const state = {
   rpcCalls: [] as RpcCall[],
 }
 
+// Bun's module mocks are process-global, so this mock has to expose the whole
+// module surface. A partial mock leaves the module without `requireAuth`, and
+// any later test file that imports it fails to link.
 mock.module('@/lib/api/route-auth', () => ({
+  requireAuth: async () =>
+    state.adminOk
+      ? { ok: true, userId: 'admin-1', email: 'admin@mercato.xyz' }
+      : {
+          ok: false,
+          response: Response.json({ error: 'Unauthorized' }, { status: 401 }),
+        },
   requireAdmin: async () =>
     state.adminOk
       ? { ok: true, userId: 'admin-1', email: 'admin@mercato.xyz' }

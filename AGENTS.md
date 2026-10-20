@@ -183,6 +183,7 @@ Wallet UI: `/dashboard/wallets` (`app/dashboard/wallets/page.tsx`).
 | `/api/ramp/*` | 14 | Fiat ramp proxy (MoneyGram) |
 | `/api/defindex/*` | 10 | Vault read/deposit/withdraw + admin create/monitor/rebalance |
 | `/api/stellar/*` | 6 | Submit tx, SAC balance, trustline, vault activity cache |
+| `/api/rwa/*` | 6 | RWA contribution prepare/submit/confirm/status, supplier settlement, refunds |
 | `/api/auth/pollar-sync` | 1 | Sync Pollar session to Supabase profile |
 | `/api/pollar/activate` | 1 | Activate embedded wallet |
 | `/api/catalog` | 1 | Supplier product catalog |
@@ -205,6 +206,10 @@ Ramp and DeFindex API keys are **server-only** — never expose secrets in `NEXT
 | `notifications` | In-app alerts (DB triggers on deal events) |
 | `reputations` | Trust scores, stake signals, repayment performance |
 | `leads` | Event form submissions (admin RLS) |
+| `rwa_assets` | RWA funding pool terms + projected state (`open` → `ready_to_settle` → `settled`) |
+| `rwa_contributions` | RWA contribution attempts (`prepared`/`submitted`/`confirmed`/`failed`/`expired`) |
+| `rwa_positions` | Confirmed RWA positions, one row per (asset, investor) |
+| `rwa_receipts` | Verified on-chain receipts; unique per (network, tx hash, event index) |
 
 Migrations: `supabase/migrations/` — apply with `npx supabase db push`.
 
@@ -221,6 +226,8 @@ Migrations: `supabase/migrations/` — apply with `npx supabase db push`.
 | Wallet types & storage | `lib/mercato-wallet.ts` |
 | TW config & platform roles | `lib/trustless/config.ts` |
 | RWA funding registry/pool | `contracts/credit-registry/`, `contracts/credit-funding/`, `contracts/credit-protocol/` |
+| RWA contribution intent service | `lib/rwa/contribution-intent.ts`, `lib/rwa/settlement.ts`, `lib/rwa/db.ts` |
+| RWA chain reading & event decoding | `lib/rwa/chain.ts` |
 | DeFindex config & monitor | `lib/defindex/config.ts`, `lib/defindex/vault-monitor.ts` |
 | API route auth | `lib/api/route-auth.ts` |
 | Admin queues | `lib/admin/get-admin-queue-data.ts` |
