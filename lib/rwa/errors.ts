@@ -44,6 +44,8 @@ export const RWA_ERROR_CODES = {
   WRONG_NETWORK: 'rwa_wrong_network',
   /** The event references a different asset than the reserved intent. */
   WRONG_ASSET: 'rwa_wrong_asset',
+  /** The asset is not denominated in the expected token. */
+  WRONG_TOKEN: 'rwa_wrong_token',
   /** The event references a different investor than the reserved intent. */
   WRONG_INVESTOR: 'rwa_wrong_investor',
   /** The event principal does not match the reserved intent. */
@@ -84,6 +86,7 @@ const HTTP_STATUS: Record<RwaErrorCode, number> = {
   [RWA_ERROR_CODES.WRONG_CONTRACT]: 409,
   [RWA_ERROR_CODES.WRONG_NETWORK]: 409,
   [RWA_ERROR_CODES.WRONG_ASSET]: 409,
+  [RWA_ERROR_CODES.WRONG_TOKEN]: 409,
   [RWA_ERROR_CODES.WRONG_INVESTOR]: 403,
   [RWA_ERROR_CODES.WRONG_PRINCIPAL]: 409,
   [RWA_ERROR_CODES.WRONG_NONCE]: 409,

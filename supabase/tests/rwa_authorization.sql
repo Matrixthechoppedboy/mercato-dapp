@@ -5,7 +5,7 @@
 
 begin;
 
-select plan(11);
+select plan(13);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -162,6 +162,28 @@ select throws_ok(
   '42501',
   'RWA deal terms are locked',
   'the terms of an RWA deal cannot be changed from a browser session'
+);
+
+-- A deal must not be able to slip out of RWA mode in the same statement that
+-- sets its funding columns.
+select throws_ok(
+  $$ update public.deals
+     set funding_mode = 'legacy',
+         investor_id = '11111111-1111-4111-8111-111111111111',
+         status = 'funded',
+         funded_at = now(),
+         funding_tx_hash = 'deadbeef'
+   where id = '44444444-4444-4444-8444-444444444444' $$,
+  '42501',
+  'RWA funding mode is server-authorised',
+  'an RWA deal cannot be flipped to legacy mode from a browser session'
+);
+
+select throws_ok(
+  $$ update public.deals set funding_mode = 'legacy' where id = '44444444-4444-4444-8444-444444444444' $$,
+  '42501',
+  'RWA funding mode is server-authorised',
+  'the funding mode of an RWA deal cannot be changed from a browser session'
 );
 
 reset role;

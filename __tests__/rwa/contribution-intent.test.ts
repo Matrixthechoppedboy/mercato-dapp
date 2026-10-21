@@ -179,6 +179,7 @@ function buildDeps(options: {
       networkPassphrase: 'Test SDF Network ; September 2015',
       rpcUrl: 'https://soroban-testnet.stellar.org',
       registryContractId: null,
+      usdcSacAddress: null,
       enabled: true,
     },
     rpcCalls: supabase.rpcCalls,
@@ -437,6 +438,44 @@ describe('prepareContribution', () => {
         idempotencyKey: 'idem-key-1234',
       }),
     ).rejects.toThrow(/precision/)
+  })
+
+  test('rejects an asset that is not denominated in the expected token', async () => {
+    const deps = buildDeps({
+      tables: { rwa_assets: [assetRow()], profiles: [investorProfile()] },
+      rpcs: { rwa_reserve_contribution: reserveRpc() },
+    })
+    deps.config = { ...deps.config, usdcSacAddress: accountAddress(9) }
+
+    await expect(
+      prepareContribution(deps, actor, {
+        assetId: ASSET_ID,
+        amount: 100,
+        walletAddress: WALLET,
+        idempotencyKey: 'idem-key-1234',
+      }),
+    ).rejects.toThrow(/expected token/)
+    expect(deps.rpcCalls).toHaveLength(0)
+  })
+
+  test('accepts an asset that matches the pinned token', async () => {
+    const deps = buildDeps({
+      tables: {
+        rwa_assets: [assetRow({ token_contract_id: accountAddress(9) })],
+        profiles: [investorProfile()],
+      },
+      rpcs: { rwa_reserve_contribution: reserveRpc() },
+    })
+    deps.config = { ...deps.config, usdcSacAddress: accountAddress(9) }
+
+    const result = await prepareContribution(deps, actor, {
+      assetId: ASSET_ID,
+      amount: 100,
+      walletAddress: WALLET,
+      idempotencyKey: 'idem-key-1234',
+    })
+
+    expect(result.attemptId).toBe(ATTEMPT_ID)
   })
 
   test('surfaces the remaining capacity on a conflict', async () => {

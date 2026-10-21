@@ -15,6 +15,16 @@ export type RwaConfig = {
   rpcUrl: string
   /** Registry contract that owns asset terms (contracts/credit-registry). */
   registryContractId: string | null
+  /**
+   * USDC Stellar Asset Contract address the funding pools are denominated in.
+   *
+   * The registry only accepts its own USDC SAC when an asset is registered, and
+   * the pool freezes that token in its terms, so the token cannot change at
+   * call time. Pinning it here still guards the unit conversion: a database
+   * row that claims a different token or a different number of decimals would
+   * make the server compute the wrong principal.
+   */
+  usdcSacAddress: string | null
   /** Whether the RWA funding path is enabled for this deployment. */
   enabled: boolean
 }
@@ -48,6 +58,7 @@ export function getRwaConfig(): RwaConfig {
         : 'Test SDF Network ; September 2015',
     rpcUrl,
     registryContractId: readContractId(process.env.RWA_REGISTRY_CONTRACT_ID),
+    usdcSacAddress: readContractId(process.env.RWA_USDC_SAC_ADDRESS),
     enabled: process.env.RWA_ENABLED === 'true',
   }
 }

@@ -200,8 +200,18 @@ declare
     coalesce(auth.jwt() ->> 'role', '') = 'service_role';
   funding_changed boolean;
 begin
-  if new.funding_mode is distinct from 'rwa' then
+  -- Both sides are checked on purpose. Looking only at `new` would let a
+  -- browser flip the deal out of RWA mode and set the funding columns in the
+  -- same statement, which would slip past the guard below.
+  if old.funding_mode is distinct from 'rwa' and new.funding_mode is distinct from 'rwa' then
     return new;
+  end if;
+
+  -- The mode itself is server-owned: a deal issued into the RWA path stays
+  -- there, and only the platform server can issue it in the first place.
+  if new.funding_mode is distinct from old.funding_mode and not is_service_role then
+    raise exception 'RWA funding mode is server-authorised'
+      using errcode = '42501';
   end if;
 
   funding_changed :=
@@ -239,7 +249,9 @@ security definer
 set search_path = public
 as $$
 begin
-  if old.funding_mode <> 'rwa' then
+  -- Both sides are checked, so a deal cannot be flipped out of RWA mode in
+  -- the same statement that changes its terms.
+  if old.funding_mode is distinct from 'rwa' and new.funding_mode is distinct from 'rwa' then
     return new;
   end if;
 

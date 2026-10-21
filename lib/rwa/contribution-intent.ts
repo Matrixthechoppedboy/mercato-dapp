@@ -202,6 +202,20 @@ async function loadOpenAsset(
     )
   }
 
+  // The pool freezes its token on chain, so a database row that claims a
+  // different token would make the server compute the wrong principal. The
+  // check only applies when the deployment pins the expected token.
+  if (
+    config.usdcSacAddress &&
+    asset.token_contract_id.trim().toUpperCase() !==
+      config.usdcSacAddress.trim().toUpperCase()
+  ) {
+    throw new RwaError(
+      RWA_ERROR_CODES.WRONG_TOKEN,
+      'The asset is not denominated in the expected token',
+    )
+  }
+
   if (new Date(asset.deadline_at).getTime() <= Date.now()) {
     throw new RwaError(
       RWA_ERROR_CODES.FUNDING_EXPIRED,
