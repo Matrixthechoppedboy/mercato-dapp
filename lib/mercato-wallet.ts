@@ -43,6 +43,48 @@ export const WALLET_STORAGE_KEY = 'mercato_wallet'
 export const PollarWalletKitLimitations =
   'Pollar embedded wallets support onboarding, balances, receive flows, and simple Stellar operations, but Trustless Work escrow signing still requires a Stellar Wallets Kit wallet.'
 
+/**
+ * Returns true when the connected wallet provider can sign and submit
+ * classic Stellar USDC transactions (e.g. direct deal funding).
+ *
+ * Both SWK and Pollar support classic tx signing, so this always returns
+ * true for any connected provider. The check exists as an explicit gate so
+ * future providers can set it to false if needed.
+ */
+export function canWalletSignClassicTx(
+  provider: WalletProviderType | null | undefined,
+): boolean {
+  if (!provider) return false
+  // Both 'stellar-wallets-kit' and 'pollar' support classic Stellar tx signing.
+  return provider === 'stellar-wallets-kit' || provider === 'pollar'
+}
+
+/**
+ * Returns true when the connected wallet provider can sign Soroban / Trustless Work
+ * escrow transactions.
+ *
+ * Pollar does not yet support Soroban contract invocations reliably — escrow
+ * deploy and release still require a Stellar Wallets Kit wallet.
+ */
+export function canWalletSignSorobanTx(
+  provider: WalletProviderType | null | undefined,
+): boolean {
+  if (!provider) return false
+  return provider === 'stellar-wallets-kit'
+}
+
+/**
+ * Returns a human-readable description of what this wallet provider
+ * cannot do, if anything. Returns null when the provider supports all
+ * required operations.
+ */
+export function getWalletCapabilityLimitation(
+  provider: WalletProviderType | null | undefined,
+): string | null {
+  if (provider === 'pollar') return PollarWalletKitLimitations
+  return null
+}
+
 export function getStellarNetwork(): 'mainnet' | 'testnet' {
   return process.env.NEXT_PUBLIC_POLLAR_NETWORK === 'mainnet'
     ? 'mainnet'

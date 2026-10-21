@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { InvestorDeal } from './types'
 import { buildInvestorPortfolio } from './portfolio-metrics'
 
-const DEAL_COLUMNS = `id, title, product_name, status, amount, interest_rate, term_days,
+const DEAL_COLUMNS = `id, title, product_name, status, amount, contribution_amount, interest_rate, term_days,
    created_at, funded_at, pyme_id, escrow_contract_address,
    pyme:profiles!deals_pyme_id_fkey(company_name, full_name, contact_name)`
 

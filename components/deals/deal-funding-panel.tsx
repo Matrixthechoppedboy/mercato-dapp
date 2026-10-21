@@ -71,7 +71,7 @@ export function DealFundingPanel({
 
   const fundingTotal = deal.investorFundingTotal || investorFundingTotal(deal.priceUSDC)
 
-  const handleFundDeal = async () => {
+  const handleFundDeal = async (contributionPrincipal?: number) => {
     if (!deal || !walletAddress) return
     if (!deal.supplierAddress) {
       toast.error(t('dealDetail.toastSupplierAddressMissing'))
@@ -86,6 +86,8 @@ export function DealFundingPanel({
       return
     }
     setIsFunding(true)
+    // Use the validated contribution principal from the dialog, or fall back to full deal price
+    const principal = contributionPrincipal ?? deal.priceUSDC
     try {
       const {
         data: { user },
@@ -108,7 +110,7 @@ export function DealFundingPanel({
         sourceAddress: walletAddress,
         supplierAddress: deal.supplierAddress,
         platformAddress: MERCATO_PLATFORM_ADDRESS,
-        principal: deal.priceUSDC,
+        principal,
       })
 
       let fundingTxHash: string | undefined
@@ -235,7 +237,7 @@ export function DealFundingPanel({
       isConnected={isConnected}
       walletAddress={walletAddress}
       onConnect={onConnect}
-      onConfirmFund={handleFundDeal}
+      onConfirmFund={(contributionPrincipal) => void handleFundDeal(contributionPrincipal)}
     />
   )
 
@@ -318,7 +320,7 @@ export function DealFundingPanel({
             isConnected={isConnected}
             walletAddress={walletAddress}
             onConnect={onConnect}
-            onConfirmFund={handleFundDeal}
+            onConfirmFund={(contributionPrincipal) => void handleFundDeal(contributionPrincipal)}
             trigger={
               <Button size="lg" className="w-full gap-2 shadow-sm">
                 <Wallet className="h-5 w-5" aria-hidden />
