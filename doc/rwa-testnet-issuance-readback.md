@@ -1,63 +1,66 @@
-# RWA Credit Asset Issuance & Readback (Stellar Testnet)
+# RWA issuance: implementation and Testnet evidence status
 
-## Overview
-This document records the end-to-end Soroban Credit Registry transaction issuance and subsequent readback on Stellar Testnet for MERCATO SOW Task 03/10 (Issue #246).
+**Incomplete. There is no verified Testnet issuance/readback for this PR.**
 
-## Environment Details
-- **Network**: Stellar Testnet (`Test SDF Network ; September 2015`)
-- **Soroban RPC**: `https://soroban-testnet.stellar.org`
-- **Horizon URL**: `https://horizon-testnet.stellar.org`
-- **Credit Registry Contract**: `CA3D5BEQGDRKBCGCJAS2WGDCMWIFOKQ5OBPXDV6HXW4S2GUC26IEMNZZ`
-- **USDC Asset SAC**: `CAQCEVRQLXEBJ4R7IX5P3O7M34F5TCSM5G63CSX32V6R3J6XW33XWUSDC`
-- **Platform Fee Recipient**: `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5`
+The previous version of this document incorrectly presented unverified contract
+addresses, a transaction hash and a ledger as successful on-chain evidence.
+Those claims have been withdrawn. The registry and token addresses failed the
+Stellar SDK's StrKey validation; the cited transaction was not found by the
+Testnet RPC or Horizon. RPC history is bounded, so `NOT_FOUND` alone would not
+prove that a historical transaction never existed.
 
----
+## What this draft implements
 
-## Canonical Issuance Transaction
+- A reusable check of a wallet-signed Soroban envelope against the exact
+  server-owned unsigned transaction reviewed by the administrator. It checks
+  the complete signature base and a real Ed25519 signature on the selected
+  network, rejects expired/unbounded transactions and fee-bump envelopes, and
+  supports only a single source-account signer/authorization flow.
+- Admin-protected prepare, submit and status endpoints that return HTTP 503
+  with `RWA_ISSUANCE_UNAVAILABLE`. They do not prepare transactions, submit to
+  RPC, write financial mappings, or report completed issuance. There is no
+  environment flag that enables the unfinished flow.
+- Local tests with real SDK-generated XDR and disposable test signatures.
+  These tests do not submit transactions or establish Testnet evidence.
 
-### 1. Business Deal Intent
-- **Deal ID**: `b71c2601-5e82-4299-80fb-9d0429f939cb`
-- **Product**: Agricultural Harvest Working Capital Loan
-- **Principal Amount**: 25,000.00 USDC (`250000000000` stroops)
-- **Supplier Wallet**: `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5`
-- **Platform Fee BPS**: `100` (1.00%)
-- **Fee Policy Version**: `1`
-- **Funding Window**: 30 days
-- **Asset ID (SHA-256)**: `8f3c473129532d8471e89cf297d09618f0f35359a10243685e8a4a5874c7df8b`
+The provisional business orchestration, invented financial snapshot/hash
+format, synthetic deployment defaults, unused confirmation card and unreleased
+schema migration have been removed from this draft. Existing legacy deal
+creation, funding, repayment and database migrations are unchanged.
 
-### 2. Transaction Execution
-- **Method**: `register_asset(asset_id: BytesN<32>, terms: RegistryAssetTerms)`
-- **Transaction Hash**: `d87e078ba15f945371c6c039ba3957eb6a2a6e9a626a57cb7e39f37d36b85e0c`
-- **Ledger Sequence**: `854129`
-- **Status**: `SUCCESS`
-- **Fee Paid**: 100 stroops base + Soroban resource fees
+## Required to complete #246
 
----
+1. Integrate #244's approved eligibility evidence, locked snapshot/version,
+   canonical commitments, maturity rule, persistence and uniqueness constraints.
+2. Integrate #245's registry ABI, issuer authorization, deterministic issuance
+   identity, events/readback and verified Testnet deployment manifest.
+3. Persist the business intent and each transaction attempt before signing or
+   submission. Compare signed XDR with that stored, reviewed attempt; record
+   its hash before network submission. Reconcile unknown attempts before retry.
+4. Confirm successful ledger inclusion **and** the expected registry result,
+   event and readback before atomically recording the canonical asset mapping.
+   Recover chain success/DB failure into that same issuance identity.
+5. Add the EN/ES admin review/action/status UI and approved SWK signing flow;
+   keep unsupported Pollar operations disabled. Complete the issue's mocked
+   RPC/wallet, authorization, concurrency, recovery and database tests.
+6. Perform a real Testnet issuance using the authorized wallet. Record source
+   revision, deployed contract/WASM/network, transaction hash, ledger, decoded
+   call, expected result/event and matching readback. Store no secret keys or
+   private documents in evidence. Only then replace this pending status with
+   independently verifiable receipt links and mark the PR ready for review.
 
-## On-Chain Readback Verification
+## Local validation of the correction
 
-Querying `get_asset(8f3c473129532d8471e89cf297d09618f0f35359a10243685e8a4a5874c7df8b)` on the Credit Registry contract returns:
+Using the repository's pinned Bun 1.3.14:
 
-```json
-{
-  "asset_id": "8f3c473129532d8471e89cf297d09618f0f35359a10243685e8a4a5874c7df8b",
-  "lifecycle": "Open",
-  "funding_pool": null,
-  "terms": {
-    "token": "CAQCEVRQLXEBJ4R7IX5P3O7M34F5TCSM5G63CSX32V6R3J6XW33XWUSDC",
-    "token_decimals": 7,
-    "target_principal": 250000000000,
-    "supplier": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
-    "fee_recipient": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
-    "excess_recipient": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
-    "funding_fee_bps": 100,
-    "fee_policy_version": 1,
-    "deadline": 1795000000
-  }
-}
-```
+- `bun test __tests__/rwa`: 38 passed, 0 failed.
+- `bunx eslint lib/rwa app/api/rwa __tests__/rwa`: passed.
+- `bun build`: passed. The existing Next.js configuration skips type checking.
+- `bun lint`: 91 errors and 47 warnings, identical to base commit
+  `763f9901bbcd46bf06f5102bf14de82a1fc388d0` after normalizing checkout paths.
+- `bunx tsc --noEmit`: the same 21 diagnostics as that base commit, with no
+  diagnostics in the RWA files.
 
-## Failure & Recovery Proof
-1. **Idempotency**: Repeated calls to `/api/rwa/issuance/prepare` or `/api/rwa/issuance/submit` with the same `dealId` reject duplicate creation and retain canonical mappings.
-2. **Tamper Rejection**: Any alteration to principal, receiver, contract ID, or network passphrase in the signed XDR triggers `TamperedPayloadError` (HTTP 422).
-3. **Database Disconnect Recovery**: If RPC returns `SUCCESS` while Supabase is unavailable, `/api/rwa/issuance/status` reconciles from RPC `getTransaction` and persists the asset record cleanly.
+These local checks do not establish on-chain acceptance. See the
+[Stellar RPC confirmation and retention
+documentation](https://developers.stellar.org/docs/data/apis/rpc/api-reference/methods/getTransaction).
