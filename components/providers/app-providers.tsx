@@ -20,7 +20,7 @@ export function AppProviders({
 }: {
   children: ReactNode
   locale: Locale
-  messages: Messages
+  messages?: Messages
   navAuth: NavAuthSnapshot
 }) {
   return (
