@@ -130,6 +130,7 @@ Wallet UI: `/dashboard/wallets` (`app/dashboard/wallets/page.tsx`).
 | **Pollar embedded wallet** | ✅ | `providers/pollar-provider.tsx`, `api/auth/pollar-sync`, `api/pollar/activate` |
 | **DeFindex vault** | ✅ | `lib/defindex/`, `app/api/defindex/`, `/dashboard/vault`, `/dashboard/admin/vault` |
 | **Fiat ramps** (MoneyGram) | ✅ Opt-in via env | `lib/anchors/`, `app/api/ramp/`, `/dashboard/ramp` |
+| **RWA funding pool** | ⚠️ Soroban contracts implemented; not wired to app/DB | `contracts/credit-registry/`, `contracts/credit-funding/` |
 | **Blend** | ⚠️ Indirect only | Testnet SAC/trustline helpers for DeFindex vault setup (`lib/stellar/vault-asset-trustline.ts`) — **no Blend SDK or pool calls** |
 | **MoneyGram** | ❌ Not implemented | Mentioned in early docs only; no code references |
 
@@ -219,6 +220,7 @@ Migrations: `supabase/migrations/` — apply with `npx supabase db push`.
 | Direct USDC funding XDR | `lib/stellar/build-usdc-split-payment.ts` |
 | Wallet types & storage | `lib/mercato-wallet.ts` |
 | TW config & platform roles | `lib/trustless/config.ts` |
+| RWA funding registry/pool | `contracts/credit-registry/`, `contracts/credit-funding/`, `contracts/credit-protocol/` |
 | DeFindex config & monitor | `lib/defindex/config.ts`, `lib/defindex/vault-monitor.ts` |
 | API route auth | `lib/api/route-auth.ts` |
 | Admin queues | `lib/admin/get-admin-queue-data.ts` |
@@ -235,6 +237,7 @@ components/             # UI — deals/, ramp/, wallet/, dashboard/, admin/
 hooks/                  # React hooks (wallet, escrow, defindex, deals)
 lib/                    # Business logic, Stellar, anchors, defindex, supabase
 providers/              # wallet-provider, pollar-provider
+contracts/              # Soroban credit registry, funding pool, and shared types
 supabase/migrations/    # Schema (source of truth for DB)
 __tests__/              # Bun tests
 doc/                    # Architecture docs
@@ -264,6 +267,9 @@ bun typecheck        # app source (tsconfig.json, excludes __tests__)
 bun typecheck:tests  # tests + app (tsconfig.tests.json, includes Bun test types)
 bun build
 bun test
+cargo fmt --all -- --check
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 Before opening a PR: lint + typecheck + typecheck:tests + build must pass. Schema changes: new file under `supabase/migrations/` via `supabase migration new <name>`.
@@ -274,6 +280,7 @@ Before opening a PR: lint + typecheck + typecheck:tests + build must pass. Schem
 |------|---------------|
 | Change deal creation flow | `app/create-deal/`, `hooks/use-create-deal-*.ts` |
 | Change investor funding | `components/deals/deal-funding-panel.tsx`, `lib/stellar/build-usdc-split-payment.ts` |
+| Change Soroban RWA funding contracts | `contracts/credit-registry/`, `contracts/credit-funding/`, `contracts/credit-protocol/` |
 | Change repayment escrow | `hooks/use-repayment-escrow.ts`, `components/deals/deal-repayment-panel.tsx` |
 | Admin approval queue | `lib/admin/get-admin-queue-data.ts`, `app/dashboard/admin/` |
 | Add ramp provider | `lib/anchors/<provider>/`, `lib/anchor-factory.ts`, `app/api/ramp/` |
