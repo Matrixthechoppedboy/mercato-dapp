@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FileSpreadsheet, Loader2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,53 +38,107 @@ export function SupplierInventoryImportDialog({
 }: SupplierInventoryImportDialogProps) {
   const { t } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
   const [rows, setRows] = useState<ValidatedRow[]>([])
   const [fileName, setFileName] = useState('')
   const [error, setError] = useState('')
+  const [isParsing, setIsParsing] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [isParsing, setIsParsing] = useState(false)
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [])
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
+      abortControllerRef.current?.abort()
+      abortControllerRef.current = null
+      setIsParsing(false)
       setRows([])
       setFileName('')
       setError('')
+      if (inputRef.current) inputRef.current.value = ''
     }
+  }, [])
+
+  // Invalidate any in-flight parse when the import target context changes.
+  useEffect(() => {
+    generationRef.current += 1
+    setRows([])
+    setFileName('')
+    setError('')
+    setIsParsing(false)
+    if (inputRef.current) inputRef.current.value = ''
+  }, [products])
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) invalidate()
     onOpenChange(nextOpen)
   }
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return
+    const generation = generationRef.current + 1
+    generationRef.current = generation
+    const targetProducts = productsRef.current
     setError('')
     setRows([])
     setFileName(file.name)
-    const parsed = await parseFile(file)
-    if (!parsed.ok) {
-      setError(t(`supplierProfile.${parsed.error}`))
-      return
+    setIsParsing(true)
+
+    abortControllerRef.current?.abort()
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+
+    try {
+      const parsed = await parseFile(file, abortController.signal)
+      if (abortController.signal.aborted) return
+
+      if (!parsed.ok) {
+        if (parsed.error === 'parse.aborted') return
+        setError(t(`supplierProfile.${parsed.error}`))
+        return
+      }
+
+      const mapped = applyColumnMapping(parsed.rows, autoMapHeaders(parsed.headers))
+      const existingSkus = new Set(products.flatMap((product) => (product.sku ? [product.sku] : [])))
+      setRows(validateImportRows(mapped, existingSkus))
+    } catch (err) {
+      if (abortController.signal.aborted) return
+      setError(err instanceof Error ? err.message : t('supplierProfile.importFailed'))
+    } finally {
+      if (!abortController.signal.aborted) {
+        setIsParsing(false)
+      }
     }
-    const mapped = applyColumnMapping(parsed.rows, autoMapHeaders(parsed.headers))
-    const existingSkus = new Set(products.flatMap((product) => product.sku ? [product.sku] : []))
-    setRows(validateImportRows(mapped, existingSkus))
   }
 
   const summary = computeImportSummary(rows)
 
   const handleImport = async () => {
-    const importable = rows.flatMap((row) => row.importable && row.product ? [row.product] : [])
+    const importable = rows.flatMap((row) => (row.importable && row.product ? [row.product] : []))
     if (importable.length === 0) return
+    const generation = generationRef.current
+    const targetProducts = productsRef.current
     setIsImporting(true)
     try {
-      if (await onImport(importable)) onOpenChange(false)
+      const success = await onImport(importable)
+      if (!mountedRef.current || generation !== generationRef.current) return
+      if (success && productsRef.current === targetProducts) handleOpenChange(false)
     } catch (importError) {
+      if (!mountedRef.current || generation !== generationRef.current) return
       setError(importError instanceof Error ? importError.message : t('supplierProfile.importFailed'))
     } finally {
-      setIsImporting(false)
+      if (mountedRef.current && generation === generationRef.current) setIsImporting(false)
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-xl">
         <DialogHeader>
           <DialogTitle>{t('supplierProfile.importTitle')}</DialogTitle>
           <DialogDescription>{t('supplierProfile.importDescription')}</DialogDescription>
@@ -96,17 +150,34 @@ export function SupplierInventoryImportDialog({
             type="file"
             accept=".csv,.xlsx,.xls"
             className="sr-only"
+            disabled={isParsing || isImporting}
             onChange={(event) => void handleFile(event.target.files?.[0])}
           />
           <button
             type="button"
-            className="flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 py-8 text-center hover:bg-muted/30"
+            disabled={isParsing || isImporting}
+            className="flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 py-8 text-center hover:bg-muted/30 disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={() => inputRef.current?.click()}
           >
-            {fileName ? <FileSpreadsheet className="mb-2 h-8 w-8 text-primary" aria-hidden /> : <Upload className="mb-2 h-8 w-8 text-muted-foreground" aria-hidden />}
-            <span className="font-medium">{fileName || t('supplierProfile.importChooseFile')}</span>
+            {isParsing ? (
+              <Loader2 className="mb-2 h-8 w-8 animate-spin text-primary" aria-hidden />
+            ) : fileName ? (
+              <FileSpreadsheet className="mb-2 h-8 w-8 text-primary" aria-hidden />
+            ) : (
+              <Upload className="mb-2 h-8 w-8 text-muted-foreground" aria-hidden />
+            )}
+            <span className="font-medium">
+              {isParsing ? t('supplierProfile.importParsing') : fileName || t('supplierProfile.importChooseFile')}
+            </span>
             <span className="mt-1 text-xs text-muted-foreground">{t('supplierProfile.importFileHint')}</span>
           </button>
+
+          {isParsing && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-w-4 w-4 animate-spin" aria-hidden />
+              {t('supplierProfile.importParsing')}
+            </p>
+          )}
 
           {error && <p className="text-sm text-destructive">{error}</p>}
 
@@ -124,8 +195,14 @@ export function SupplierInventoryImportDialog({
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>{t('common.cancel')}</Button>
-          <Button type="button" disabled={summary.importable === 0 || isImporting} onClick={() => void handleImport()}>
+          <Button type="button" variant="ghost" disabled={isImporting} onClick={() => handleOpenChange(false)}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            disabled={summary.importable === 0 || isImporting || isParsing}
+            onClick={() => void handleImport()}
+          >
             {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
             {t('supplierProfile.importProducts')}
           </Button>

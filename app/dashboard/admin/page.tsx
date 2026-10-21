@@ -65,7 +65,7 @@ export default async function AdminOverviewPage() {
                 <div>
                   <p className="font-medium">{deal.supplier_name ?? 'Unknown supplier'}</p>
                   <p className="text-sm text-muted-foreground">
-                    {new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).surformat(Number(deal.order_value ?? 0))}
+                    {new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(Number(deal.order_value ?? 0))}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Expired: {deal.expires_at ? new Date(deal.expires_at).toLocaleDateString(locale) : 'N/A'}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { stellarWalletKit } from '@/lib/trustless/wallet-kit'
+import { getStellarWalletKit } from '@/lib/trustless/lazy-wallet-kit'
 import { usePollarSession } from '@/providers/pollar-provider'
 import {
   getEmbeddedWalletId,
@@ -45,7 +45,13 @@ export function useWalletPersistence() {
     if (stored.provider === 'stellar-wallets-kit') {
       const restoreExternal = async () => {
         try {
-          const { address } = await stellarWalletKit.getAddress({
+          const walletKit = await getStellarWalletKit()
+          if (!walletKit) {
+            persistWallet(null)
+            return
+          }
+
+          const { address } = await walletKit.getAddress({
             skipRequestAccess: true,
           })
           if (address) {

@@ -196,6 +196,10 @@
     "totalValue": "Total value",
     "allDeals": "All deals",
     "searchPlaceholder": "Search deals, PyMEs, suppliers...",
+    "searchAria": "Search deals",
+    "filterStatusAria": "Filter deals by status",
+    "filterCategoryAria": "Filter deals by category",
+    "filterSortAria": "Sort deals",
     "allCategories": "All categories",
     "sortBy": "Sort by",
     "newest": "Newest first",
@@ -737,6 +741,8 @@
     "verified": "Verified",
     "countries": "Countries",
     "searchPlaceholder": "Search suppliers or products…",
+    "searchAria": "Search suppliers",
+    "categoryGroupAria": "Filter suppliers by category",
     "countryPlaceholder": "Country",
     "allCountries": "All countries",
     "sectorPlaceholder": "Sector",
@@ -1122,6 +1128,9 @@
     "fundingPillExpired": "Expired",
     "fundingPillFundedShort": "Funded",
     "notFoundHelp": "The deal you're looking for doesn't exist or you don't have access.",
+    "loadError": "We couldn't load this deal",
+    "loadErrorHelp": "Something went wrong while loading the deal. Check your connection and try again.",
+    "retry": "Retry",
     "toastFundOnlyInvestors": "Only investors can fund deals.",
     "toastFundSignIn": "You must be signed in to fund a deal.",
     "toastFundSuccess": "Deal funded — supplier paid and platform fee collected.",
@@ -2152,6 +2161,15 @@
     "importDuplicates": "Duplicates",
     "importPreviewHint": "Rows with validation errors or duplicate SKUs will be skipped.",
     "importFailed": "Product import failed.",
+    "importParsing": "Parsing spreadsheet…",
+    "parse": {
+      "fileTooLarge": "File size exceeds the 5 MB limit.",
+      "csvParseError": "Could not parse CSV file.",
+      "xlsxEmpty": "Excel workbook has no sheets.",
+      "xlsxNoRows": "Excel sheet does not contain any data rows.",
+      "xlsxParseError": "Could not parse Excel workbook.",
+      "unsupportedFileType": "Unsupported file format. Please upload a .csv, .xlsx, or .xls file."
+    },
     "searchProducts": "Search products…",
     "searchProductsAria": "Search products",
     "allCategories": "All categories",
@@ -3360,5 +3378,15 @@
       "feeWarning": "Fee warning",
       "networkWarning": "Network warning"
     }
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred while loading this section.",
+    "retry": "Try again",
+    "dashboardTitle": "Unable to load dashboard",
+    "dashboardDescription": "The dashboard data could not be loaded. Please try again.",
+    "directoryTitle": "Unable to load directory",
+    "directoryDescription": "The directory listings could not be loaded. Please try again.",
+    "diagnosticLabel": "Error reference"
   }
 }

@@ -98,10 +98,10 @@ export async function PATCH(request: Request) {
       }
     }
 
-    const nowIso = new Date().toISString()
+    const nowIso = new Date().toISOString()
     const nextExpiration = new Date(
       Date.now() + fundingWindowDays * 24 * 60 * 60 * 1000,
-    ).toISSString()
+    ).toISOString()
 
     const previousHistory = Array.isArray(existingDeal.reopen_history)
       ? existingDeal.reopen_history
@@ -235,7 +235,7 @@ export async function PATCH(request: Request) {
     .eq('id', company.owner_id)
     .single()
 
-  const nowIso = new Date().toISString()
+  const nowIso = new Date().toISOString()
   const previousWindow =
     body.previousFundingWindowDays ?? existingDeal.funding_window_days ?? null
   const windowChanged = previousWindow == null || previousWindow !== fundingWindowDays
@@ -264,7 +264,7 @@ export async function PATCH(request: Request) {
   if (windowChanged) {
     updatePayload.funding_expires_at = new Date(
       Date.now() + fundingWindowDays * 24 * 60 * 60 * 1000,
-    ).toISSString()
+    ).toISOString()
   }
 
   let query = supabase

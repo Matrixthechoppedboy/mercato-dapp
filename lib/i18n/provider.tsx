@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -19,6 +20,13 @@ type I18nContextValue = {
   messages: Messages
   t: (key: string, replacements?: Replacements) => string
   setLocale: (locale: Locale) => void
+}
+
+type PendingLocale = {
+  locale: Locale
+  messages: Messages
+  /** Server messages the switch was made against; new server props supersede it. */
+  basis: Messages
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null)
@@ -57,7 +65,7 @@ export function I18nProvider({
         router.refresh()
       }
     },
-    [router],
+    [locale, messages, router],
   )
 
   const t = useCallback(

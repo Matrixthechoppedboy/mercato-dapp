@@ -156,7 +156,7 @@ export function DealFundingPanel({
       toast.success(t('dealDetail.toastFundSuccess'))
       setIsFundingDialogOpen(false)
 
-      if (deal.pyme_id) {
+      if (deal.pymeId) {
         fetch('/api/referral/milestone', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

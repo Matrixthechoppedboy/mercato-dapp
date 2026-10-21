@@ -10,6 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json",
     "test": "bun test"
   },
   "dependencies": {
@@ -83,6 +85,7 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/bun": "^1.4.3",
     "@types/node": "^22",
     "@types/papaparse": "^5.5.2",
     "@types/qrcode": "^1.5.6",

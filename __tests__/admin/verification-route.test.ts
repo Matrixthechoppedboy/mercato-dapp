@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, expect, mock, test } from 'bun:test'
 
 type RpcCall = { fn: string; args: Record<string, unknown> }
+type RpcResult = { data: string | null; error: { code?: string } | null }
 
-const state = {
+const state: {
+  adminOk: boolean
+  rpcResult: RpcResult
+  rpcCalls: RpcCall[]
+} = {
   adminOk: true,
-  rpcResult: { data: 'audit-1', error: null as { code?: string } | null },
-  rpcCalls: [] as RpcCall[],
+  rpcResult: { data: 'audit-1', error: null },
+  rpcCalls: [],
 }
 
 mock.module('@/lib/api/route-auth', () => ({
