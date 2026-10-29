@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
-import { DashboardHome } from '-/components/dashboard/dashboard-home'
-import { getDashboardData, DashboardQueryError } from '@/lib/dashboard/get-dashboard-data'
+import { DashboardHome } from '@/components/dashboard/dashboard-home'
+import { getDashboardData } from '@/lib/dashboard/get-dashboard-data'
 import { getServerDictionary } from '@/lib/i18n/server'
 import { getServerAuth } from '@/lib/auth/server-auth-helper'
 
@@ -30,20 +30,9 @@ export default async function DashboardPage({
   // Required query failures surface to the route error boundary instead of
   // being silently coerced into zero/empty data. Optional section failures are
   // represented in the payload and rendered explicitly by the dashboard.
-  try {
-    const data = await getDashboardData(supabase, user.id, profile, user.email, companyFilterId)
+  const data = await getDashboardData(supabase, user.id, profile, user.email, companyFilterId)
 
-    return <DashboardHome data={data} t={t} />
-  } catch (error) {
-    if (error instanceof DashboardQueryError) {
-      // Re-throw so Next.js route error boundary catches it and renders the
-      // retry UI. The error carries structured diagnostics (operation, role)
-      // without leaking sensitive data.
-      throw error
-    }
-
-    throw error
-  }
+  return <DashboardHome data={data} t={t} />
 }
 
 async function getSearchParamsPromise(

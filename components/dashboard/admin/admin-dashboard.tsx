@@ -29,8 +29,8 @@ export function AdminDashboard({ data, t }: AdminDashboardProps) {
         </>
       ) : (
         <DashboardSectionError
-          title={t.adminDashboard.statsUnavailableTitle}
-          description={t.adminDashboard.statsUnavailableDescription}
+          title="Stats unavailable"
+          description="Platform statistics could not be loaded. Try refreshing the page."
         />
       )}
 
@@ -52,8 +52,8 @@ export function AdminDashboard({ data, t }: AdminDashboardProps) {
           />
         ) : (
           <DashboardSectionError
-            title={t.adminDashboard.dealsUnavailableTitle}
-            description={t.adminDashboard.dealsUnavailableDescription}
+            title="Deals unavailable"
+            description="Deal data could not be loaded. Try refreshing the page."
           />
         )}
       </div>
